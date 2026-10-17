@@ -66,6 +66,7 @@ td{padding:8px;border-bottom:1px solid var(--line)}
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:10px 20px;border-radius:99px;z-index:30;border:1px solid var(--brass);font-size:14px}
 .empty b{font-size:18px;color:var(--ink)}.empty p{margin-top:6px}
 .lock{position:fixed;inset:0;background:var(--ink);z-index:50;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--cream);padding:20px;text-align:center}.lock.off{display:none}
+.chips{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px}.chip{padding:7px 16px;border-radius:99px;border:1px solid var(--line);background:var(--paper);white-space:nowrap;cursor:pointer;color:var(--ink)}.chip.on{background:var(--ink);color:var(--cream);border-color:var(--ink)}
 .modal{position:fixed;inset:0;background:rgba(23,19,15,.65);display:none;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto;z-index:20}
 .modal.on{display:flex}
 .box{background:var(--paper);border-radius:18px;padding:24px;width:100%;max-width:560px}
@@ -80,6 +81,7 @@ main{padding-bottom:100px}
 @media(max-width:700px){header{padding:10px 14px}.brand b{font-size:20px}main{padding:14px 12px 100px}.hero{grid-template-columns:1fr;padding:20px;border-radius:18px}.hero .big{font-size:32px}.grid{grid-template-columns:1fr}.btn{padding:11px 16px}h2{flex-wrap:wrap;font-size:18px}h2 .sp{margin-inline-start:0;width:100%;display:flex;gap:8px;flex-wrap:wrap}.kv{grid-template-columns:1fr 1fr}.modal{padding:0}.box{border-radius:0;min-height:100vh;max-width:none}.stmt{padding:14px}table{font-size:13px}th,td{padding:6px 4px}}
 @media print{body *{visibility:hidden}#pa,#pa *{visibility:visible}#pa{position:absolute;inset:0;border:0}.tot{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script><script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <header>
@@ -97,15 +99,18 @@ main{padding-bottom:100px}
 <script>
 const K='zayed_hassan_db';let db;
 try{db=JSON.parse(localStorage.getItem(K))}catch(e){}
-db=db||{c:[],s:[]};db=norm(db);const OPEN=new Set();
+db=db||{c:[],s:[]};db=norm(db);const OPEN=new Set();let ME=null;const isA=()=>ME&&ME.role==='admin';
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}push()};
 const $=i=>document.getElementById(i);
 const f=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2})+' ج.م';
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const today=()=>new Date().toISOString().slice(0,10);
-const CFG_K='zh_cfg';let cfg={url:'https://zayed-ccfd8-default-rtdb.firebaseio.com',code:''};
-try{cfg=Object.assign(cfg,JSON.parse(localStorage.getItem(CFG_K)))}catch(e){}
-function norm(d){d=d||{};d.c=d.c||[];d.s=(d.s||[]).map(s=>({...s,pay:s.pay||[]}));return d}
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const today=()=>iso(new Date());
+const now=()=>today()+' '+new Date().toTimeString().slice(0,5);
+function logA(m){db.log.unshift({t:now(),u:ME?ME.name:'',m});db.log=db.log.slice(0,300)}
+function toTrash(type,label,data){db.trash.unshift({id:uid(),type,label,at:now(),by:ME?ME.name:'',...data});db.trash=db.trash.slice(0,200)}
+const CFG_K='zh_cfg';const cfg={url:'https://zayed-ccfd8-default-rtdb.firebaseio.com',code:'zh-main-7f3a9c41e2'};
+function norm(d){d=d||{};d.c=d.c||[];d.rn=d.rn||0;d.users=d.users||[];d.trash=d.trash||[];d.log=d.log||[];d.co=d.co||{};d.s=(d.s||[]).map(s=>({...s,pay:s.pay||[]}));return d}
 function setSt(s){const e=$('st');if(e)e.textContent={local:'محفوظ على الجهاز',sync:'جاري المزامنة…',ok:'● متصل',err:'تعذّر الاتصال'}[s]}
 async function key(){const b=new TextEncoder().encode('zh|'+cfg.code);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 const base=()=>cfg.url.replace(/\/+$/,'');
@@ -116,8 +121,6 @@ async function pull(){
   try{const r=await fetch(base()+'/'+await key()+'.json');if(!r.ok)throw 0;const d=await r.json();
    if(d){db=norm(d);try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}}else if(db.c.length)push();
    setSt('ok');if(!$('m').classList.contains('on'))render()}catch(e){setSt('err')}}
-function saveCfg(){cfg={url:$('fu').value.trim(),code:$('fc').value.trim()};try{localStorage.setItem(CFG_K,JSON.stringify(cfg))}catch(e){}
-  if(!cfg.url||!cfg.code){alert('اكتب الرابط وكلمة السر');return}pull()}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
 let view='list';
 
@@ -158,23 +161,27 @@ function tot(){
    <div><span>إجمالي المبيعات بالفوايد</span><div>${f(t.total)}</div><br><span>إجمالي الفوايد</span><div>${f(t.int)}</div></div>
    <div><span>المحصّل</span><div>${f(t.paid)}</div><br><span>عدد العملاء</span><div>${db.c.length}</div></div>
   </div>
-  <h2>أعلى المديونيات</h2>
+  ${upc()}<h2>أعلى المديونيات</h2>
   ${top.length?`<div class="grid">${top.map(x=>cCard(x.c)).join('')}</div>`:`<div class="empty">لا توجد مديونيات حالياً. ابدأ بإضافة عميل ثم سجّل له عملية بيع.</div>`}
-  <h2>الربط مع Firebase</h2><div class="sale"><label>رابط Realtime Database</label><input id="fu" dir="ltr" placeholder="https://xxxx-default-rtdb.firebaseio.com" value="${esc(cfg.url)}"><label>كلمة السر (نفسها على كل أجهزتك)</label><input id="fc" type="password" value="${esc(cfg.code)}"><p style="margin-top:14px"><button class="btn g" onclick="saveCfg()">حفظ وربط</button></p></div>
-  <h2>الأمان والتصدير</h2><p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="changePw()">تغيير كلمة السر</button><button class="btn o" onclick="lockNow()">قفل التطبيق</button><button class="btn o" onclick="expCust()">تصدير العملاء Excel</button></p>
-  <h2>النسخ الاحتياطي</h2><p style="color:var(--mut);font-size:13px;margin-bottom:10px">البيانات محفوظة على هذا الجهاز فقط. نزّل نسخة كل فترة.</p><p><button class="btn" onclick="backup()">تنزيل نسخة</button> <button class="btn o" onclick="$('imp').click()">استرجاع نسخة</button></p>`;
+  ${isA()?`<h2>أدوات المدير</h2><p style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="trashM()">سلة المحذوفات</button><button class="btn" onclick="logM()">سجل النشاط</button><button class="btn" onclick="coM()">بيانات الشركة</button><button class="btn o" onclick="expCust()">تصدير العملاء Excel</button></p>
+  <h2>النسخ الاحتياطي</h2><p style="color:var(--mut);font-size:13px;margin-bottom:10px">البيانات بتتحفظ تلقائياً أونلاين وعلى الجهاز. نزّل نسخة كل فترة للاحتياط.</p><p><button class="btn" onclick="backup()">تنزيل نسخة</button> <button class="btn o" onclick="$('imp').click()">استرجاع نسخة</button></p>`:''}`;
 }
+function upc(){const e=new Date();e.setDate(e.getDate()+7);const lim=iso(e),r=[];
+  db.s.forEach(s=>{const d=due(s);if(!d.done&&!d.late&&d.next<=lim)r.push({cid:s.cid,item:s.item,date:d.next,a:calc(s).monthly})});
+  r.sort((a,b)=>a.date<b.date?-1:1);
+  return `<h2>أقساط مستحقة خلال 7 أيام</h2>${r.length?`<div class="sale">${r.map(x=>`<div class="acc" style="padding:8px 0;border-bottom:1px solid var(--line)" onclick="go('${x.cid}')"><div style="flex:1"><b>${esc((db.c.find(c=>c.id===x.cid)||{}).name)}</b><small>${esc(x.item)} · ${x.date}</small></div><b>${f(x.a)}</b></div>`).join('')}</div>`:'<div class="empty">لا توجد أقساط مستحقة خلال الأسبوع القادم.</div>'}`}
 function cTot2(){return db.c.reduce((a,c)=>{const t=cTot(c.id);a.total+=t.total;a.paid+=t.paid;a.bal+=t.bal;a.int+=t.int;return a},{total:0,paid:0,bal:0,int:0})}
 function cCard(c){const t=cTot(c.id),d=cDue(c.id);
   return `<div class="card" onclick="go('${c.id}')"><h3>${esc(c.name)}</h3><p>${esc(c.phone)}</p>
   <div class="row"><span>المتبقي</span><span class="${t.bal>0?'owe':'ok'}">${t.bal>0?f(t.bal):'خالص'}</span></div>
   ${d.late?`<div class="tag red">متأخر ${f(d.late)}</div>`:(d.next?`<div class="tag">القسط الجاي ${d.next}</div>`:'')}</div>`}
-const cs=q=>[...db.c].filter(c=>(c.name+c.phone).includes(q||'')).sort((a,b)=>cDue(b.id).late-cDue(a.id).late);
+let flt='all';
+const cs=q=>[...db.c].filter(c=>(c.name+c.phone).includes(q||'')).filter(c=>{const t=cTot(c.id);return flt==='all'||(flt==='late'&&cDue(c.id).late>0)||(flt==='done'&&t.total>0&&t.bal<=0.5)||(flt==='owe'&&t.bal>0.5)}).sort((a,b)=>cDue(b.id).late-cDue(a.id).late);
 function list(){
   const L=db.c.filter(c=>cDue(c.id).late>0).length;
   return `<h2>العملاء <span class="sp"><button class="btn g" onclick="custForm()">+ عميل جديد</button></span></h2>
   ${L?`<div class="alert">${L} عميل متأخر في الأقساط (ظاهرين في الأول)</div>`:''}
-  ${db.c.length?`<input placeholder="ابحث بالاسم أو الرقم..." oninput="srch(this.value)" style="margin-bottom:14px"><div class="grid" id="cl">${cs().map(cCard).join('')}</div>`
+  ${db.c.length?`<div class="chips">${[['all','الكل'],['late','متأخر'],['owe','عليه مديونية'],['done','خالص']].map(x=>`<button class="chip ${flt===x[0]?'on':''}" onclick="flt='${x[0]}';render()">${x[1]}</button>`).join('')}</div><input placeholder="ابحث بالاسم أو الرقم..." oninput="srch(this.value)" style="margin-bottom:14px"><div class="grid" id="cl">${cs().map(cCard).join('')}</div>`
   :`<div class="empty"><b>أهلاً بيك في نظام زايد حسن</b><p>1) اضغط "+ عميل جديد" وسجّل الاسم والرقم</p><p>2) افتح العميل واضغط "+ بيع جديد" بالمقدم والفوايد</p><p>3) كل ما يدفع اضغط "+ دفعة" وابعتله إيصال واتساب</p></div>`}`;
 }
 function srch(q){$('cl').innerHTML=cs(q).map(cCard).join('')}
@@ -188,7 +195,7 @@ function detail(id){
   ${d.late?`<div class="alert"><span>متأخر ${f(d.late)}</span><button class="btn s" style="background:#fff;color:var(--red)" onclick="remind('${id}')">ذكّره واتساب</button></div>`:''}
   <p style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn g" onclick="quickPay('${id}')">+ دفعة</button><button class="btn" onclick="saleForm('${id}')">+ بيع جديد</button><button class="btn o" onclick="stmt('${id}')">كشف حساب</button></p>
   ${ss.length?ss.map(saleCard).join(''):'<div class="empty">لا توجد عمليات بيع لهذا العميل.</div>'}
-  <p style="margin-top:20px"><button class="btn o s" onclick="editCust('${id}')">تعديل بيانات العميل</button> <button class="btn r s" onclick="delCust('${id}')">حذف العميل</button></p>`;
+  <p style="margin-top:20px"><button class="btn o s" onclick="editCust('${id}')">تعديل بيانات العميل</button> ${isA()?`<button class="btn r s" onclick="delCust('${id}')">حذف العميل</button>`:''}</p>`;
 }
 function tg(id){OPEN.has(id)?OPEN.delete(id):OPEN.add(id);render()}
 function saleCard(s){const c=calc(s),o=OPEN.has(s.id),dd=due(s);let run=c.total-s.down;
@@ -199,9 +206,9 @@ function saleCard(s){const c=calc(s),o=OPEN.has(s.id),dd=due(s);let run=c.total-
   <div>فوايد ${s.rate}% على الباقي<b>${f(c.interest)}</b></div><div>الإجمالي بالفوايد<b>${f(c.total)}</b></div><div>القسط الشهري (${s.months} شهر)<b>${f(c.monthly)}</b></div>${s.disc?`<div>خصم / إعفاء<b>${f(s.disc)}</b></div>`:''}${s.delay?`<div>تأجيل<b>${s.delay} شهر</b></div>`:''}</div>
   <table><tr><th>التاريخ</th><th>دفع</th><th>فاضل بعده</th><th></th></tr>
   <tr><td>${s.date}</td><td>${f(s.down)}</td><td>${f(run)}</td><td>مقدم</td></tr>
-  ${s.pay.map(p=>{run-=p.amt;return `<tr><td>${p.date}</td><td>${f(p.amt)}</td><td>${f(Math.max(run,0))}</td><td><button class="btn r s" onclick="delPay('${s.id}','${p.id}')">×</button></td></tr>`}).join('')}</table>
+  ${s.pay.map(p=>{run-=p.amt;return `<tr><td>${p.date}${p.no?' #'+p.no:''}</td><td>${f(p.amt)}</td><td>${f(Math.max(run,0))}</td><td>${isA()?`<button class="btn r s" onclick="delPay('${s.id}','${p.id}')">×</button>`:''}</td></tr>`}).join('')}</table>
   <p style="color:var(--mut);font-size:12px;margin:8px 0">أقساط مسددة: ${n} من ${s.months}${dd.next?' · القسط الجاي '+dd.next:''}${dd.late?' · متأخر '+f(dd.late):''}</p>
-  <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn g s" onclick="payForm('${s.id}')">+ دفعة</button><button class="btn o s" onclick="saleForm('${s.cid}','${s.id}')">تعديل</button><button class="btn o s" onclick="discForm('${s.id}')">خصم</button><button class="btn o s" onclick="postpone('${s.id}')">تأجيل قسط</button><button class="btn r s" onclick="delSale('${s.id}')">حذف</button></div>`:''}</div>`;
+  <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn g s" onclick="payForm('${s.id}')">+ دفعة</button>${isA()?`<button class="btn o s" onclick="saleForm('${s.cid}','${s.id}')">تعديل</button><button class="btn o s" onclick="discForm('${s.id}')">خصم</button><button class="btn o s" onclick="postpone('${s.id}')">تأجيل قسط</button><button class="btn r s" onclick="delSale('${s.id}')">حذف</button>`:''}</div>`:''}</div>`;
 }
 /* ---------- forms ---------- */
 function esc(s){return String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
@@ -210,8 +217,8 @@ function closeM(){$('m').classList.remove('on')}
 function custForm(){openM(`<h2 style="margin-top:0">عميل جديد</h2><label>الاسم</label><input id="cn"><label>رقم الموبايل</label><input id="cp" type="tel" placeholder="01xxxxxxxxx">
  <p style="margin-top:18px"><button class="btn g" onclick="addCust()">حفظ العميل</button> <button class="btn o" onclick="closeM()">إلغاء</button></p>`)}
 function addCust(){const n=$('cn').value.trim();if(!n){$('cn').focus();return}
-  const c={id:uid(),name:n,phone:$('cp').value.trim()};db.c.push(c);save();closeM();go(c.id);toast('تمت إضافة العميل')}
-function saleForm(cid,sid){const e=sid?db.s.find(x=>x.id===sid):null;openM(`<h2 style="margin-top:0">${e?'تعديل العملية':'بيع بالتقسيط'}</h2>
+  const c={id:uid(),name:n,phone:$('cp').value.trim()};db.c.push(c);logA('إضافة عميل: '+n);save();closeM();go(c.id);toast('تمت إضافة العميل')}
+function saleForm(cid,sid){if(sid&&!isA())return toast('غير مسموح');const e=sid?db.s.find(x=>x.id===sid):null;openM(`<h2 style="margin-top:0">${e?'تعديل العملية':'بيع بالتقسيط'}</h2>
  <label>البضاعة</label><input id="si" value="${e?esc(e.item):''}">
  <div class="two"><div><label>السعر الكلي</label><input id="sp" type="number" min="0" oninput="pv()" value="${e?e.price:''}"></div><div><label>المقدم</label><input id="sd" type="number" min="0" value="${e?e.down:0}" oninput="pv()"></div></div>
  <div class="two"><div><label>نسبة الفوايد % (على الباقي فقط)</label><input id="sr" type="number" min="0" value="${e?e.rate:0}" oninput="pv()"></div><div><label>عدد الأشهر</label><input id="sm" type="number" min="1" value="${e?e.months:6}" oninput="pv()"></div></div>
@@ -223,7 +230,7 @@ function pv(){const v=sv();const c=calc({...v,pay:[]});
   $('pvw').innerHTML=`<div>الباقي بعد المقدم<b>${f(c.rem)}</b></div><div>الفوايد<b>${f(c.interest)}</b></div><div>الإجمالي<b>${f(c.total)}</b></div><div>القسط الشهري<b>${f(c.monthly)}</b></div>`}
 function addSale(cid,sid){const v=sv();const it=$('si').value.trim();
   if(!it||v.price<=0||v.down>v.price){alert('اكتب اسم البضاعة وسعراً صحيحاً، والمقدم لا يزيد عن السعر.');return}
-  if(sid){Object.assign(db.s.find(x=>x.id===sid),{item:it,...v,date:$('sdt').value||today()})}else{const nid=uid();OPEN.add(nid);db.s.push({id:nid,cid,item:it,...v,date:$('sdt').value||today(),pay:[]})}save();closeM();render();toast('تم حفظ العملية')}
+  if(sid){Object.assign(db.s.find(x=>x.id===sid),{item:it,...v,date:$('sdt').value||today()})}else{const nid=uid();OPEN.add(nid);db.s.push({id:nid,cid,item:it,...v,date:$('sdt').value||today(),pay:[]})}logA((sid?'تعديل عملية: ':'بيع: ')+it+' ('+f(v.price)+')');save();closeM();render();toast('تم حفظ العملية')}
 function payForm(sid){const s=db.s.find(x=>x.id===sid),c=calc(s);
   openM(`<h2 style="margin-top:0">دفعة جديدة</h2><p style="color:var(--mut)">${esc(s.item)} — المتبقي ${f(c.bal)}</p>
   <label>المبلغ</label><input id="pa" type="number" min="0" value="${Math.min(c.monthly,c.bal).toFixed(2)}">
@@ -231,10 +238,10 @@ function payForm(sid){const s=db.s.find(x=>x.id===sid),c=calc(s);
   <p style="margin-top:18px"><button class="btn g" onclick="addPay('${sid}')">تسجيل الدفعة</button> <button class="btn o" onclick="closeM()">إلغاء</button></p>`)}
 function addPay(sid){const a=+$('pa').value;if(a<=0)return;const s=db.s.find(x=>x.id===sid);
   if(a>calc(s).bal+0.001&&!confirm('المبلغ أكبر من المتبقي. تسجيله؟'))return;
-  OPEN.add(sid);s.pay.push({id:uid(),amt:a,date:$('pd').value||today(),note:$('pn').value.trim()});save();render();
+  OPEN.add(sid);s.pay.push({id:uid(),no:++db.rn,amt:a,date:$('pd').value||today(),note:$('pn').value.trim()});logA('دفعة '+f(a)+' - '+s.item);save();render();
   openM(`<h2 style="margin-top:0">تم تسجيل الدفعة</h2><p>المبلغ ${f(a)} — فاضل ${f(calc(s).bal)}</p><p style="margin-top:16px"><button class="btn g" onclick="receipt('${sid}',${a})">إرسال إيصال واتساب</button> <button class="btn o" onclick="closeM()">تم</button></p>`)}
 function receipt(sid,a){const s=db.s.find(x=>x.id===sid),c=db.c.find(x=>x.id===s.cid);
-  waOpen(c.phone,`*زايد حسن — إيصال استلام*\nالعميل: ${c.name}\nالبضاعة: ${s.item}\nالمبلغ المستلم: ${f(a)}\nالتاريخ: ${today()}\nالمتبقي: ${f(calc(s).bal)}\nشكراً لتعاملكم`);closeM()}
+  waOpen(c.phone,`*زايد حسن — إيصال استلام*\nسند رقم: ${(s.pay[s.pay.length-1]||{}).no||''}\nالعميل: ${c.name}\nالبضاعة: ${s.item}\nالمبلغ المستلم: ${f(a)}\nالتاريخ: ${today()}\nالمتبقي: ${f(calc(s).bal)}\nشكراً لتعاملكم`);closeM()}
 function remind(id){const c=db.c.find(x=>x.id===id),d=cDue(id),t=cTot(id);
   waOpen(c.phone,`السلام عليكم ${c.name}\nتذكير بالقسط المستحق، المتأخر: ${f(d.late)}\nإجمالي المتبقي: ${f(t.bal)}\nشكراً لك — زايد حسن`)}
 function quickPay(cid){const a=db.s.filter(s=>s.cid===cid&&calc(s).bal>0.5);
@@ -245,9 +252,21 @@ function editCust(id){const c=db.c.find(x=>x.id===id);
   openM(`<h2 style="margin-top:0">تعديل العميل</h2><label>الاسم</label><input id="cn" value="${esc(c.name)}"><label>رقم الموبايل</label><input id="cp" type="tel" value="${esc(c.phone)}">
   <p style="margin-top:18px"><button class="btn g" onclick="saveCust('${id}')">حفظ</button> <button class="btn o" onclick="closeM()">إلغاء</button></p>`)}
 function saveCust(id){const c=db.c.find(x=>x.id===id),n=$('cn').value.trim();if(!n)return;c.name=n;c.phone=$('cp').value.trim();save();closeM();render();toast('تم الحفظ')}
-function delPay(sid,pid){if(!confirm('حذف الدفعة؟'))return;const s=db.s.find(x=>x.id===sid);s.pay=s.pay.filter(p=>p.id!==pid);save();render()}
-function delSale(sid){if(!confirm('حذف عملية البيع بكل دفعاتها؟'))return;db.s=db.s.filter(x=>x.id!==sid);save();render()}
-function delCust(id){if(!confirm('حذف العميل وكل حساباته؟'))return;db.c=db.c.filter(x=>x.id!==id);db.s=db.s.filter(x=>x.cid!==id);save();go('list')}
+function delPay(sid,pid){if(!isA()||!confirm('حذف الدفعة؟ (هتروح لسلة المحذوفات)'))return;const s=db.s.find(x=>x.id===sid),p=s.pay.find(x=>x.id===pid);
+  toTrash('pay','دفعة '+f(p.amt)+' - '+s.item,{sid,p});logA('حذف دفعة '+f(p.amt));s.pay=s.pay.filter(x=>x.id!==pid);save();render()}
+function delSale(sid){if(!isA()||!confirm('حذف العملية بكل دفعاتها؟ (هتروح لسلة المحذوفات)'))return;const s=db.s.find(x=>x.id===sid);
+  toTrash('sale','عملية: '+s.item,{s});logA('حذف عملية: '+s.item);db.s=db.s.filter(x=>x.id!==sid);save();render()}
+function delCust(id){if(!isA()||!confirm('حذف العميل وكل حساباته؟ (هيروح لسلة المحذوفات)'))return;const c=db.c.find(x=>x.id===id);
+  toTrash('cust','عميل: '+c.name,{c,s:db.s.filter(x=>x.cid===id)});logA('حذف عميل: '+c.name);db.c=db.c.filter(x=>x.id!==id);db.s=db.s.filter(x=>x.cid!==id);save();go('list')}
+function restoreT(id){const x=db.trash.find(y=>y.id===id);if(!x)return;
+  if(x.type==='cust'){db.c.push(x.c);(x.s||[]).forEach(s=>{s.pay=s.pay||[];db.s.push(s)})}
+  else if(x.type==='sale'){if(!db.c.find(c=>c.id===x.s.cid)){alert('العميل صاحب العملية محذوف. استرجعه الأول.');return}x.s.pay=x.s.pay||[];db.s.push(x.s)}
+  else{const s=db.s.find(z=>z.id===x.sid);if(!s){alert('العملية محذوفة. استرجعها الأول.');return}s.pay.push(x.p)}
+  db.trash=db.trash.filter(y=>y.id!==id);logA('استرجاع: '+x.label);save();render();trashM();toast('تم الاسترجاع')}
+function trashM(){if(!isA())return;openM(`<h2 style="margin-top:0">سلة المحذوفات</h2>${db.trash.length?db.trash.map(x=>`<div class="acc" style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="flex:1"><b>${esc(x.label)}</b><small>${x.at} · ${esc(x.by||'')}</small></div><button class="btn g s" onclick="restoreT('${x.id}')">استرجاع</button></div>`).join(''):'<div class="empty">السلة فاضية.</div>'}<p style="margin-top:14px"><button class="btn o" onclick="closeM()">إغلاق</button></p>`,1)}
+function logM(){if(!isA())return;openM(`<h2 style="margin-top:0">سجل النشاط</h2>${db.log.length?db.log.map(x=>`<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:14px"><small style="color:var(--mut)">${x.t} · ${esc(x.u)}</small><br>${esc(x.m)}</div>`).join(''):'<div class="empty">لا يوجد نشاط مسجل بعد.</div>'}<p style="margin-top:14px"><button class="btn o" onclick="closeM()">إغلاق</button></p>`,1)}
+function coM(){if(!isA())return;openM(`<h2 style="margin-top:0">بيانات الشركة</h2><p style="color:var(--mut);font-size:13px">بتظهر في أعلى كشف الحساب والـ PDF.</p><label>رقم التليفون</label><input id="cph" type="tel" value="${esc(db.co.phone||'')}"><label>العنوان</label><input id="cad" value="${esc(db.co.addr||'')}"><p style="margin-top:18px"><button class="btn g" onclick="saveCo()">حفظ</button> <button class="btn o" onclick="closeM()">إلغاء</button></p>`)}
+function saveCo(){db.co={phone:$('cph').value.trim(),addr:$('cad').value.trim()};logA('تعديل بيانات الشركة');save();closeM();toast('تم الحفظ')}
 /* ---------- statement ---------- */
 function stmt(id){
   const c=db.c.find(x=>x.id===id),ss=db.s.filter(s=>s.cid===id),t=cTot(id);
@@ -255,12 +274,20 @@ function stmt(id){
    <table><tr><td>السعر</td><td>${f(s.price)}</td><td>المقدم</td><td>${f(s.down)}</td></tr>
    <tr><td>فوايد ${s.rate}% على الباقي</td><td>${f(k.interest)}</td><td>الإجمالي</td><td>${f(k.total)}</td></tr>
    <tr><td>القسط الشهري</td><td>${f(k.monthly)}</td><td>المتبقي</td><td><b>${f(k.bal)}</b></td></tr></table>
-   ${s.pay.length?`<table style="margin-top:6px"><tr><th>تاريخ الدفعة</th><th>المبلغ</th><th>ملاحظة</th></tr>${s.pay.map(p=>`<tr><td>${p.date}</td><td>${f(p.amt)}</td><td>${esc(p.note||'')}</td></tr>`).join('')}</table>`:''}`}).join('');
+   ${s.pay.length?`<table style="margin-top:6px"><tr><th>تاريخ الدفعة</th><th>المبلغ</th><th>ملاحظة</th></tr>${s.pay.map(p=>`<tr><td>${p.date}${p.no?' (سند '+p.no+')':''}</td><td>${f(p.amt)}</td><td>${esc(p.note||'')}</td></tr>`).join('')}</table>`:''}`}).join('');
   openM(`<div class="stmt" id="pa"><div class="hd"><svg width="44" height="44" viewBox="0 0 46 46"><rect x="1.5" y="1.5" width="43" height="43" rx="12" fill="#17130F"/><path d="M13 13h20L13 33h20" fill="none" stroke="#F3EAD7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="35" cy="11" r="3" fill="#B8924A"/></svg>
-  <div><b>زايد حسن</b><div style="font-size:12px;color:#555">كشف حساب عميل — ${today()}</div></div></div>
+  <div><b>زايد حسن</b><div style="font-size:12px;color:#555">كشف حساب عميل — ${today()}</div>${db.co.phone||db.co.addr?`<div style="font-size:12px;color:#555">${esc(db.co.addr||'')} ${esc(db.co.phone||'')}</div>`:''}</div></div>
   <div><b>${esc(c.name)}</b> &nbsp; <span dir="ltr">${esc(c.phone)}</span></div>${body||'<p>لا توجد عمليات.</p>'}
   <div class="tot"><span>إجمالي المدفوع: ${f(t.paid)}</span><span>المتبقي: ${f(t.bal)}</span></div></div>
-  <p style="margin-top:16px"><button class="btn" onclick="window.print()">طباعة</button> <button class="btn g" onclick="wa('${id}')">إرسال واتساب</button> <button class="btn o" onclick="closeM()">إغلاق</button></p>`,1)}
+  <p style="margin-top:16px"><button class="btn" onclick="dlPdf('${id}')">تحميل PDF</button> <button class="btn o" onclick="window.print()">طباعة</button> <button class="btn g" onclick="wa('${id}')">إرسال واتساب</button> <button class="btn o" onclick="closeM()">إغلاق</button></p>`,1)}
+async function dlPdf(id){
+  if(!window.html2canvas||!window.jspdf){alert('تحميل PDF محتاج إنترنت. جرّب تاني بعد الاتصال.');return}
+  toast('جاري تجهيز الملف...');
+  try{const cv=await html2canvas($('pa'),{scale:2,backgroundColor:'#ffffff',scrollX:0,scrollY:-window.scrollY});
+   const pdf=new window.jspdf.jsPDF('p','mm','a4'),img=cv.toDataURL('image/jpeg',.92),ih=cv.height*210/cv.width;
+   for(let pos=0;pos<ih-1;pos+=297){if(pos)pdf.addPage();pdf.addImage(img,'JPEG',0,-pos,210,ih)}
+   pdf.save('كشف-حساب-'+db.c.find(x=>x.id===id).name+'.pdf')}
+  catch(e){alert('تعذّر إنشاء الملف. استخدم زرار الطباعة ثم "حفظ كـ PDF".')}}
 function wa(id){
   const c=db.c.find(x=>x.id===id),ss=db.s.filter(s=>s.cid===id),t=cTot(id);
   let m=`*زايد حسن — كشف حساب*\nالعميل: ${c.name}\nالتاريخ: ${today()}\n`;
@@ -291,29 +318,29 @@ function rep(){
   <h4>عمليات البيع</h4>${ms.length?`<table><tr><th>التاريخ</th><th>العميل</th><th>البضاعة</th><th>السعر</th></tr>${ms.map(s=>`<tr><td>${s.date.slice(5)}</td><td>${esc(nm(s.cid))}</td><td>${esc(s.item)}</td><td>${f(s.price)}</td></tr>`).join('')}</table>`:'<p style="color:#777">لا توجد مبيعات في هذا الشهر.</p>'}
   </div>`;
 }
-function discForm(sid){const s=db.s.find(x=>x.id===sid),c=calc(s);
+function discForm(sid){if(!isA())return toast('غير مسموح');const s=db.s.find(x=>x.id===sid),c=calc(s);
   openM(`<h2 style="margin-top:0">خصم / إعفاء</h2><p style="color:var(--mut)">${esc(s.item)} — المتبقي ${f(c.bal)}</p><label>إجمالي الخصم على هذه العملية (اكتب 0 لإلغائه)</label><input id="dv" type="number" min="0" value="${s.disc||0}">
   <p style="margin-top:18px"><button class="btn g" onclick="saveDisc('${sid}')">حفظ الخصم</button> <button class="btn o" onclick="closeM()">إلغاء</button></p>`)}
 function saveDisc(sid){const s=db.s.find(x=>x.id===sid),c=calc(s),v=+$('dv').value||0;
   if(v<0||v>c.bal+(s.disc||0)+0.001){alert('الخصم أكبر من المتبقي.');return}
-  s.disc=v;save();closeM();render();toast('تم حفظ الخصم')}
-function postpone(sid){const s=db.s.find(x=>x.id===sid),m=prompt('تأجيل مواعيد الأقساط كام شهر؟ (اكتب 0 لإلغاء التأجيل)',s.delay||1);
-  if(m===null)return;s.delay=Math.max(parseInt(m)||0,0);save();render();toast('تم تعديل مواعيد الأقساط')}
+  s.disc=v;logA('خصم '+f(v)+' - '+s.item);save();closeM();render();toast('تم حفظ الخصم')}
+function postpone(sid){if(!isA())return toast('غير مسموح');const s=db.s.find(x=>x.id===sid),m=prompt('تأجيل مواعيد الأقساط كام شهر؟ (اكتب 0 لإلغاء التأجيل)',s.delay||1);
+  if(m===null)return;s.delay=Math.max(parseInt(m)||0,0);logA('تأجيل '+s.delay+' شهر - '+s.item);save();render();toast('تم تعديل مواعيد الأقساط')}
 function csv(name,rows){const s='\ufeff'+rows.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv;charset=utf-8'}));a.download=name+'.csv';a.click()}
 function expCust(){csv('clients-'+today(),[['العميل','الموبايل','الإجمالي','المدفوع','المتبقي','المتأخر'],...db.c.map(c=>{const t=cTot(c.id);return[c.name,c.phone,t.total,t.paid,t.bal,cDue(c.id).late]})])}
 function expRep(){csv('report-'+rm,[['التاريخ','العميل','البيان','المبلغ'],...RR.map(r=>[r.d,r.n,r.t,r.a])])}
 async function sha(s){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('zhpw|'+s));return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function curHash(){return db.pw||await sha('123456')}
-async function unlock(){const h=await sha($('lp').value);if(h===await curHash()){try{localStorage.setItem('zh_ok',h)}catch(e){}$('lk').classList.add('off');start()}else{$('le').textContent='كلمة السر غير صحيحة';$('lp').value=''}}
-function lockNow(){try{localStorage.removeItem('zh_ok')}catch(e){}location.reload()}
-async function changePw(){const n=prompt('اكتب كلمة السر الجديدة (4 أحرف أو أرقام على الأقل)');if(!n||n.length<4)return;db.pw=await sha(n);try{localStorage.setItem('zh_ok',db.pw)}catch(e){}save();toast('تم تغيير كلمة السر')}
-function start(){setSt(cfg.url&&cfg.code?'sync':'local');render();pull()}
-async function boot(){let ok=null;try{ok=localStorage.getItem('zh_ok')}catch(e){}
-  if(ok&&ok===await curHash()){$('lk').classList.add('off');start()}else setTimeout(()=>$('lp').focus(),100)}
+async function findUser(h){return h&&h===await sha('123456')?{id:'def',name:'المدير',role:'admin',h}:null}
+async function unlock(){const h=await sha($('lp').value);let u=await findUser(h);
+  if(u){ME=u;try{localStorage.setItem('zh_ok',h)}catch(e){}$('lk').classList.add('off');start()}else{$('le').textContent='كلمة السر غير صحيحة';$('lp').value=''}}
+function logout(){try{localStorage.removeItem('zh_ok')}catch(e){}location.reload()}
+function start(){setSt(cfg.url&&cfg.code?'sync':'local');render();pull().then(async()=>{let h=null;try{h=localStorage.getItem('zh_ok')}catch(e){}const u=await findUser(h);if(!u)logout();else{ME=u;render()}})}
+async function boot(){let ok=null;try{ok=localStorage.getItem('zh_ok')}catch(e){}const u=await findUser(ok);
+  if(u){ME=u;$('lk').classList.add('off');start()}else setTimeout(()=>$('lp').focus(),100)}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 /* ---------- backup ---------- */
-function backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='zayed-hassan-backup-'+today()+'.json';a.click()}
-function restore(el){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.c&&d.s){db=norm(d);save();go('tot')}else alert('ملف غير صالح')}catch(e){alert('ملف غير صالح')}};if(el.files[0])r.readAsText(el.files[0])}
+function backup(){if(!isA())return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));a.download='zayed-hassan-backup-'+today()+'.json';a.click()}
+function restore(el){if(!isA())return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.c&&d.s){db=norm(d);save();go('tot')}else alert('ملف غير صالح')}catch(e){alert('ملف غير صالح')}};if(el.files[0])r.readAsText(el.files[0])}
 boot();
 </script>
 </body>
